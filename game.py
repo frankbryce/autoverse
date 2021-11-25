@@ -49,7 +49,6 @@ class Autoverse:
 
         # the goal with this should be to converge on some status quo of energy kernels.
         # that was any perturbations in the surrounding area will be sorted out.
-        # We need to have the energy deltas here make this happen. Right now, it's a mess.
         self.diff = np.zeros((self.width,))
         for i, x in enumerate(tmp):
             if np.random.rand() < self.energies[i][x]:
@@ -73,8 +72,8 @@ class Autoverse:
             raise("only one of print_diff and print_energies may be specified.")
         for i in range(self.width):
             c = ' ' if self.universe[i] == 0 else 'X'
+            r,g,b = 0,0,0
             if print_energies:
-                r,g,b = 0.0,0.0,0.0
                 for e in range(len(self.energies[i])):
                     is_r = e & 0b001
                     is_g = e & 0b010
@@ -88,7 +87,6 @@ class Autoverse:
                 norm = 255.0/(2**(self.ksz-1))
                 r,g,b = int(r*norm), int(g*norm), int(b*norm)
             if print_diff:
-                r = g = 0
                 b = int(128*self.diff[i]/self.entropy + 64)
             print(sty.bg(r,g,b) + c, end='')
         
@@ -101,7 +99,9 @@ def run(width,
         pull,
         ksz,
         rule30,
+        print_universe,
         print_diff,
+        print_energies,
         prompt_period,
         speed,
         save_location,
@@ -116,6 +116,7 @@ def run(width,
         universe = np.load(f'{load_location}/universe_{load_iteration:09d}.npy')
         energies = np.load(f'{load_location}/energies_{load_iteration:09d}.npy')
         autoverse.universe = universe
+        autoverse.width = len(universe)
         autoverse.energies = energies
         if load_metadata:
             metadata = np.load(f'{load_location}/metadata.npy')
@@ -133,19 +134,22 @@ def run(width,
     np.save(f'{save_location}/metadata.npy',
             np.array([autoverse.entropy, autoverse.ksz, autoverse.jitter, autoverse.pull]))
 
-    autoverse.print_universe(print_diff=print_diff, print_energies=(not print_diff))
+    if print_universe:
+        autoverse.print_universe(print_diff=print_diff, print_energies=print_energies)
     step_cnt = 0
     def iterate():
         nonlocal step_cnt
         step_cnt += 1
         autoverse.step()
-        autoverse.print_universe(print_diff=print_diff, print_energies=(not print_diff))
+        if print_universe:
+            autoverse.print_universe(print_diff=print_diff, print_energies=print_energies)
         sleep(speed)
         if save_period > 0 and step_cnt % save_period == 0:
             np.save(f'{save_location}/universe_{step_cnt:09d}.npy', autoverse.universe)
             np.save(f'{save_location}/energies_{step_cnt:09d}.npy', autoverse.energies)
         if step_cnt % prompt_period == 0 and prompt_period > 0:
-            input("enter to continue: ")
+            autoverse.print_universe(print_diff=print_diff, print_energies=print_energies)
+            input("")
 
     if steps >= 0:
         for _ in range(steps):
@@ -157,20 +161,24 @@ def run(width,
 
 if __name__ == "__main__":
     # decode flags?
-    w = os.get_terminal_size().columns - 5
+    w = os.get_terminal_size().columns
     steps = -1
     entropy = 0.02
     jitter = 0.0
     pull = 0.00001
     ksz = 3
+    print_universe = False
     print_diff = False
+    print_energies = False
+    if print_diff or print_energies:
+        w -= 5
     rule30 = True
     prompt_period = -1
     speed = 0.00
     save_location = 'save/' + datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_period = 1000
-    load_location = 'save/20211124_214605'
-    load_iteration = 14000
+    save_period = 1000000
+    load_location = 'save/20211124_222307'
+    load_iteration = 250000
     load_metadata = False
     run(w,
         steps,
@@ -179,7 +187,9 @@ if __name__ == "__main__":
         pull,
         ksz,
         rule30,
+        print_universe,
         print_diff,
+        print_energies,
         prompt_period,
         speed,
         save_location,
