@@ -31,7 +31,8 @@ class Autoverse2D:
         tmp = scipy.ndimage.convolve(
                 self.universe,
                 self.kernel,
-                output=np.uint8, mode='wrap')
+                output=np.uint64,
+                mode='wrap')
     
         for i, x in np.ndenumerate(tmp):
             if self.universe[i] == 1:
