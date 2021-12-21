@@ -1,3 +1,5 @@
 #!/bin/bash
 
-python project/app.py
+python=/usr/bin/python3
+
+$python project/app.py
